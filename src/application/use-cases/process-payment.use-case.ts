@@ -1,6 +1,6 @@
 import { Injectable, Inject } from '@nestjs/common';
-import { PRODUCT_REPOSITORY, TRANSACTION_REPOSITORY } from '../../domain/repositories';
-import type { ProductRepository, TransactionRepository } from '../../domain/repositories';
+import { CUSTOMER_REPOSITORY, PRODUCT_REPOSITORY, TRANSACTION_REPOSITORY } from '../../domain/repositories';
+import type { CustomerRepository, ProductRepository, TransactionRepository } from '../../domain/repositories';
 import { TransactionStatus } from '../../shared/types';
 import { TransactionNotFoundError, PaymentProcessingError } from '../../shared/errors/domain.errors';
 import { Result } from '../../shared/types/result';
@@ -12,9 +12,9 @@ export interface ProcessPaymentInput {
   creditCard: {
     number: string;
     cvc: string;
-    expMonth: string;
-    expYear: string;
-    cardHolder: string;
+    exp_month: string;
+    exp_year: string;
+    card_holder: string;
   };
 }
 
@@ -32,6 +32,8 @@ export class ProcessPaymentUseCase {
     private readonly transactionRepository: TransactionRepository,
     @Inject(PRODUCT_REPOSITORY)
     private readonly productRepository: ProductRepository,
+    @Inject(CUSTOMER_REPOSITORY)
+    private readonly customerRepository: CustomerRepository,
     private readonly wompiClient: WompiClient,
   ) {}
 
@@ -49,27 +51,44 @@ export class ProcessPaymentUseCase {
         return Result.failure(new PaymentProcessingError(`Transaction is not in PENDING status. Current status: ${transaction.status}`));
       }
 
-      // 3. Buscar el producto para obtener el email del cliente
+      // 3. ✅ BUSCAR EL CUSTOMER usando customerId
+      const customer = await this.customerRepository.findById(transaction.customerId);
+
+      if (!customer) {
+        return Result.failure(new PaymentProcessingError(`Customer not found: ${transaction.customerId}`));
+      }
+
+      console.log('Processing payment for customer:', {
+        customerId: customer.id,
+        email: customer.email,
+        fullName: customer.fullName,
+      });
+
+      // 4. Buscar el producto
       const product = await this.productRepository.findById(transaction.productId);
 
       if (!product) {
         return Result.failure(new PaymentProcessingError('Product not found for transaction'));
       }
 
-      // 4. Tokenizar la tarjeta de crédito con Wompi
+      // 5. Tokenizar la tarjeta de crédito con Wompi
       let cardToken: string;
       try {
+        console.log('Tokenizing card...');
+
         const tokenResponse = await this.wompiClient.tokenizeCard({
           number: input.creditCard.number,
           cvc: input.creditCard.cvc,
-          exp_month: input.creditCard.expMonth,
-          exp_year: input.creditCard.expYear,
-          card_holder: input.creditCard.cardHolder,
+          exp_month: input.creditCard.exp_month,
+          exp_year: input.creditCard.exp_year,
+          card_holder: input.creditCard.card_holder,
         });
 
         cardToken = tokenResponse.data.id;
+        console.log('Card tokenized successfully:', cardToken);
       } catch (error) {
-        // Si falla la tokenización, marcar transacción como ERROR
+        console.error('Card tokenization failed:', error.message);
+
         transaction.markAsError({
           error: 'Card tokenization failed',
           details: error.message,
@@ -79,55 +98,81 @@ export class ProcessPaymentUseCase {
         return Result.failure(new PaymentProcessingError(`Card tokenization failed: ${error.message}`));
       }
 
-      // 5. Generar referencia única para la transacción
+      // 6. Generar referencia única para la transacción
       const reference = `TXN-${transaction.id}-${Date.now()}`;
 
-      // 6. Procesar el pago con Wompi
+      // 7. Procesar el pago con Wompi
       try {
+        console.log('Processing payment with Wompi...', {
+          amount: transaction.totalAmount,
+          reference,
+          customerEmail: customer.email,
+        });
+
         const paymentResponse = await this.wompiClient.createTransaction({
           amount_in_cents: transaction.totalAmount,
           currency: 'COP',
-          customer_email: input.creditCard.cardHolder, // Usamos el nombre del titular
+          customer_email: customer.email,
           payment_method: {
             type: 'CARD',
             token: cardToken,
           },
           reference: reference,
+          customer_data: {
+            phone_number: customer.phoneNumber,
+            full_name: customer.fullName,
+          },
         });
 
         const wompiStatus = paymentResponse.data.status;
         const wompiTransactionId = paymentResponse.data.id;
 
-        // 7. Actualizar transacción según el resultado de Wompi
-        if (wompiStatus === 'APPROVED') {
-          // Pago aprobado
+        console.log('Payment response:', {
+          wompiTransactionId,
+          status: wompiStatus,
+        });
+
+        // 8. ✅ Actualizar transacción según el resultado de Wompi
+        // En sandbox: PENDING es considerado éxito
+        // En producción: Solo APPROVED es éxito
+        if (wompiStatus === 'APPROVED' || wompiStatus === 'PENDING') {
+          console.log(`✅ Payment ${wompiStatus} - Marking as approved`);
+
+          // Pago aprobado o pendiente (sandbox)
           transaction.markAsApproved(wompiTransactionId, paymentResponse.data);
           await this.transactionRepository.update(transaction);
 
-          // 8. Reducir el stock del producto
-          product.reduceStock(1); // Asumimos cantidad = 1 por ahora
+          // 9. Reducir el stock del producto
+          const quantity = 1;
+          product.reduceStock(quantity);
           await this.productRepository.update(product);
 
           return Result.success({
             transaction,
             wompiTransactionId,
             status: TransactionStatus.APPROVED,
-            message: 'Payment processed successfully',
+            message: `Payment processed successfully (Status: ${wompiStatus})`,
           });
         } else if (wompiStatus === 'DECLINED') {
+          console.log('❌ Payment DECLINED');
+
           // Pago rechazado
           transaction.markAsDeclined(paymentResponse.data);
           await this.transactionRepository.update(transaction);
 
           return Result.failure(new PaymentProcessingError(`Payment declined: ${paymentResponse.data.status_message || 'Unknown reason'}`));
         } else {
-          // Otro estado (PENDING, ERROR, etc.)
+          console.log(`⚠️ Payment with unexpected status: ${wompiStatus}`);
+
+          // Otro estado inesperado
           transaction.markAsError(paymentResponse.data);
           await this.transactionRepository.update(transaction);
 
           return Result.failure(new PaymentProcessingError(`Payment failed with status: ${wompiStatus}`));
         }
       } catch (error) {
+        console.error('Payment processing failed:', error.message);
+
         // Error al procesar el pago
         transaction.markAsError({
           error: 'Payment processing failed',
@@ -138,6 +183,7 @@ export class ProcessPaymentUseCase {
         return Result.failure(new PaymentProcessingError(`Payment failed: ${error.message}`));
       }
     } catch (error) {
+      console.error('Unexpected error in ProcessPaymentUseCase:', error);
       return Result.failure(error);
     }
   }

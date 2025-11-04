@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unsafe-return */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { HttpService } from '@nestjs/axios';
@@ -79,10 +81,27 @@ export class WompiClient {
    * Tokeniza una tarjeta de crédito
    * Convierte los datos sensibles de la tarjeta en un token seguro
    */
-  async tokenizeCard(cardData: WompiTokenizeCardRequest): Promise<WompiTokenizeCardResponse> {
+  async tokenizeCard(cardData: any): Promise<WompiTokenizeCardResponse> {
     try {
+      // ✅ Normalizar datos - soportar ambos formatos (camelCase y snake_case)
+      const normalizedData: WompiTokenizeCardRequest = {
+        number: (cardData.number || '').replace(/\s/g, ''),
+        cvc: String(cardData.cvc),
+        exp_month: String(cardData.exp_month || cardData.expMonth),
+        exp_year: String(cardData.exp_year || cardData.expYear),
+        card_holder: String(cardData.card_holder || cardData.cardHolder).toUpperCase(),
+      };
+
+      // ✅ Log para debug
+      console.log('Tokenizing card with normalized data:', {
+        number: `****${normalizedData.number.slice(-4)}`,
+        exp_month: normalizedData.exp_month,
+        exp_year: normalizedData.exp_year,
+        card_holder: normalizedData.card_holder,
+      });
+
       const response = await firstValueFrom(
-        this.httpService.post<WompiTokenizeCardResponse>(`${this.baseUrl}/tokens/cards`, cardData, {
+        this.httpService.post<WompiTokenizeCardResponse>(`${this.baseUrl}/tokens/cards`, normalizedData, {
           headers: {
             Authorization: `Bearer ${this.publicKey}`,
             'Content-Type': 'application/json',
@@ -90,9 +109,14 @@ export class WompiClient {
         }),
       );
 
+      console.log('Card tokenized successfully:', response.data.data.id);
       return response.data;
     } catch (error) {
-      console.error('Error tokenizing card:', error.response?.data || error.message);
+      console.error('Error tokenizing card:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message,
+      });
       throw new Error(`Failed to tokenize card: ${error.response?.data?.error?.reason || error.message}`);
     }
   }
@@ -102,31 +126,82 @@ export class WompiClient {
    */
   async createTransaction(paymentData: WompiPaymentRequest): Promise<WompiPaymentResponse> {
     try {
-      // Generar firma de integridad
+      if (!paymentData.customer_email || !paymentData.customer_email.includes('@')) {
+        throw new Error(`Invalid customer email: ${paymentData.customer_email}`);
+      }
+
       const signature = this.generateIntegritySignature(paymentData.reference, paymentData.amount_in_cents, paymentData.currency);
 
+      const acceptanceToken = await this.getAcceptanceToken();
+
+      const payload = {
+        acceptance_token: acceptanceToken,
+        amount_in_cents: paymentData.amount_in_cents,
+        currency: paymentData.currency,
+        customer_email: paymentData.customer_email,
+        payment_method: {
+          type: 'CARD',
+          token: paymentData.payment_method.token,
+          installments: 1,
+        },
+        reference: paymentData.reference,
+        signature: signature,
+        ...(paymentData.customer_data && { customer_data: paymentData.customer_data }),
+      };
+
+      console.log('Creating Wompi transaction with payload:', {
+        ...payload,
+        signature: { integrity: signature.substring(0, 20) + '...' },
+      });
+
       const response = await firstValueFrom(
-        this.httpService.post<WompiPaymentResponse>(
-          `${this.baseUrl}/transactions`,
-          {
-            ...paymentData,
-            signature: {
-              integrity: signature,
-            },
+        this.httpService.post<WompiPaymentResponse>(`${this.baseUrl}/transactions`, payload, {
+          headers: {
+            Authorization: `Bearer ${this.privateKey}`,
+            'Content-Type': 'application/json',
           },
-          {
-            headers: {
-              Authorization: `Bearer ${this.privateKey}`,
-              'Content-Type': 'application/json',
-            },
-          },
-        ),
+        }),
       );
 
+      console.log('✅ Wompi transaction created:', {
+        id: response.data.data.id,
+        status: response.data.data.status,
+        amount: response.data.data.amount_in_cents,
+      });
       return response.data;
     } catch (error) {
-      console.error('Error creating transaction:', error.response?.data || error.message);
-      throw new Error(`Failed to create transaction: ${error.response?.data?.error?.reason || error.message}`);
+      console.error('Error creating transaction:', {
+        status: error.response?.status,
+        error: error.response?.data?.error,
+        messages: error.response?.data?.error?.messages,
+      });
+
+      throw new Error(`Failed to create transaction: ${JSON.stringify(error.response?.data?.error || error.message)}`);
+    }
+  }
+
+  /**
+   * Obtiene el acceptance_token de Wompi
+   * Este token es necesario para confirmar que el usuario acepta los términos
+   */
+  private async getAcceptanceToken(): Promise<string> {
+    try {
+      // Endpoint para obtener el merchant y su acceptance_token
+      const response = await firstValueFrom(
+        this.httpService.get(`${this.baseUrl}/merchants/${this.publicKey}`, {
+          headers: {
+            Authorization: `Bearer ${this.publicKey}`,
+          },
+        }),
+      );
+
+      const acceptanceToken = response.data.data.presigned_acceptance.acceptance_token;
+      console.log('Acceptance token obtained:', acceptanceToken?.substring(0, 30) + '...');
+
+      return acceptanceToken;
+    } catch (error) {
+      console.error('Error getting acceptance token:', error.response?.data);
+      throw new Error('Failed to get acceptance token from Wompi');
     }
   }
 
@@ -155,9 +230,22 @@ export class WompiClient {
    * Esta firma asegura que la transacción no ha sido modificada
    */
   private generateIntegritySignature(reference: string, amountInCents: number, currency: string): string {
+    // ✅ FORMATO CORRECTO: reference + amountInCents + currency + integrityKey
     const concatenatedString = `${reference}${amountInCents}${currency}${this.integrityKey}`;
 
-    return crypto.createHash('sha256').update(concatenatedString).digest('hex');
+    console.log('Generating signature with:', {
+      reference,
+      amountInCents,
+      currency,
+      integrityKey: this.integrityKey?.substring(0, 20) + '...',
+      concatenatedString: concatenatedString.substring(0, 50) + '...',
+    });
+
+    const signature = crypto.createHash('sha256').update(concatenatedString).digest('hex');
+
+    console.log('Generated signature:', signature);
+
+    return signature;
   }
 
   /**

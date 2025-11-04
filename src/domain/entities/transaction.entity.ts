@@ -22,14 +22,34 @@ export class Transaction {
     public paymentResponse: any,
     public createdAt: Date,
     public updatedAt: Date,
-  ) {}
+  ) {
+    this.productAmount = Number(productAmount);
+    this.baseFee = Number(baseFee);
+    this.deliveryFee = Number(deliveryFee);
+    this.totalAmount = Number(totalAmount);
+  }
 
-  static calculateFees(productPrice: number, baseFee: number, deliveryFee: number): TransactionFees {
-    const total = productPrice + baseFee + deliveryFee;
+  static calculateFees(productAmount: number, baseFee: number, deliveryFee: number): { baseFee: number; deliveryFee: number; total: number } {
+    const productAmountNum = Number(productAmount);
+    const baseFeeNum = Number(baseFee);
+    const deliveryFeeNum = Number(deliveryFee);
+
+    const totalInPesos = productAmountNum + baseFeeNum + deliveryFeeNum;
+
+    const totalInCents = Math.round(totalInPesos * 100);
+
+    console.log('Transaction.calculateFees:', {
+      productAmount: productAmountNum,
+      baseFee: baseFeeNum,
+      deliveryFee: deliveryFeeNum,
+      totalInPesos,
+      totalInCents,
+    });
+
     return {
-      baseFee,
-      deliveryFee,
-      total,
+      baseFee: baseFeeNum,
+      deliveryFee: deliveryFeeNum,
+      total: totalInCents,
     };
   }
 

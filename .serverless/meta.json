@@ -148,7 +148,7 @@
               "Properties": {
                 "Code": {
                   "S3Bucket": "serverless-framework-deployments-us-east-1-f0e05431-9088",
-                  "S3Key": "serverless/payment-app-backend/prod/1762228863515-2025-11-04T04:01:03.515Z/payment-app-backend.zip"
+                  "S3Key": "serverless/payment-app-backend/prod/1762239664310-2025-11-04T07:01:04.310Z/payment-app-backend.zip"
                 },
                 "Handler": "index.handler",
                 "Runtime": "nodejs20.x",
@@ -177,14 +177,14 @@
                 "ApiLogGroup"
               ]
             },
-            "ApiLambdaVersion1g4jK98eresOubXM0RuwHiTRXzSjha6T12Oz4iP7WY": {
+            "ApiLambdaVersionOj3x7PJ5IGeWcQkStB05jRPddywjSQDCJC0tHlwyE": {
               "Type": "AWS::Lambda::Version",
               "DeletionPolicy": "Retain",
               "Properties": {
                 "FunctionName": {
                   "Ref": "ApiLambdaFunction"
                 },
-                "CodeSha256": "/uuY0ac/cPXRWh+p1f/Hr3RwxjP5KF9CC49xeY/xvBk="
+                "CodeSha256": "Mr602V2mkOd5ZNAxL2DHnhTmyI3H2RRrbrGynJD0eT0="
               }
             },
             "HttpApi": {
@@ -293,7 +293,7 @@
             "ApiLambdaFunctionQualifiedArn": {
               "Description": "Current Lambda function version",
               "Value": {
-                "Ref": "ApiLambdaVersion1g4jK98eresOubXM0RuwHiTRXzSjha6T12Oz4iP7WY"
+                "Ref": "ApiLambdaVersionOj3x7PJ5IGeWcQkStB05jRPddywjSQDCJC0tHlwyE"
               },
               "Export": {
                 "Name": "sls-payment-app-backend-prod-ApiLambdaFunctionQualifiedArn"
@@ -352,7 +352,7 @@
           "timeout": 29,
           "runtime": "nodejs20.x",
           "vpc": {},
-          "versionLogicalId": "ApiLambdaVersion1g4jK98eresOubXM0RuwHiTRXzSjha6T12Oz4iP7WY"
+          "versionLogicalId": "ApiLambdaVersionOj3x7PJ5IGeWcQkStB05jRPddywjSQDCJC0tHlwyE"
         }
       },
       "package": {
@@ -369,7 +369,7 @@
         "artifactsS3KeyDirname": "serverless/payment-app-backend/prod/code-artifacts",
         "deploymentBucket": "serverless-framework-deployments-us-east-1-f0e05431-9088",
         "artifact": "C:\\Users\\ricar\\Desktop\\REACT\\payment-app-backend\\.serverless\\payment-app-backend.zip",
-        "artifactDirectoryName": "serverless/payment-app-backend/prod/1762228863515-2025-11-04T04:01:03.515Z"
+        "artifactDirectoryName": "serverless/payment-app-backend/prod/1762239664310-2025-11-04T07:01:04.310Z"
       }
     },
     "provider": {
@@ -512,7 +512,7 @@
             "Properties": {
               "Code": {
                 "S3Bucket": "serverless-framework-deployments-us-east-1-f0e05431-9088",
-                "S3Key": "serverless/payment-app-backend/prod/1762228863515-2025-11-04T04:01:03.515Z/payment-app-backend.zip"
+                "S3Key": "serverless/payment-app-backend/prod/1762239664310-2025-11-04T07:01:04.310Z/payment-app-backend.zip"
               },
               "Handler": "index.handler",
               "Runtime": "nodejs20.x",
@@ -541,14 +541,14 @@
               "ApiLogGroup"
             ]
           },
-          "ApiLambdaVersion1g4jK98eresOubXM0RuwHiTRXzSjha6T12Oz4iP7WY": {
+          "ApiLambdaVersionOj3x7PJ5IGeWcQkStB05jRPddywjSQDCJC0tHlwyE": {
             "Type": "AWS::Lambda::Version",
             "DeletionPolicy": "Retain",
             "Properties": {
               "FunctionName": {
                 "Ref": "ApiLambdaFunction"
               },
-              "CodeSha256": "/uuY0ac/cPXRWh+p1f/Hr3RwxjP5KF9CC49xeY/xvBk="
+              "CodeSha256": "Mr602V2mkOd5ZNAxL2DHnhTmyI3H2RRrbrGynJD0eT0="
             }
           },
           "HttpApi": {
@@ -657,7 +657,7 @@
           "ApiLambdaFunctionQualifiedArn": {
             "Description": "Current Lambda function version",
             "Value": {
-              "Ref": "ApiLambdaVersion1g4jK98eresOubXM0RuwHiTRXzSjha6T12Oz4iP7WY"
+              "Ref": "ApiLambdaVersionOj3x7PJ5IGeWcQkStB05jRPddywjSQDCJC0tHlwyE"
             },
             "Export": {
               "Name": "sls-payment-app-backend-prod-ApiLambdaFunctionQualifiedArn"
@@ -723,12 +723,12 @@
     "serviceProviderAwsCfStackName": "payment-app-backend-prod",
     "serviceProviderAwsCfStackId": "arn:aws:cloudformation:us-east-1:083095415990:stack/payment-app-backend-prod/b0145890-b924-11f0-9f55-0affc0b575f9",
     "serviceProviderAwsCfStackCreated": "2025-11-04T02:19:27.390Z",
-    "serviceProviderAwsCfStackUpdated": "2025-11-04T03:48:38.816Z",
+    "serviceProviderAwsCfStackUpdated": "2025-11-04T05:33:36.561Z",
     "serviceProviderAwsCfStackStatus": "UPDATE_COMPLETE",
     "serviceProviderAwsCfStackOutputs": [
       {
         "OutputKey": "ApiLambdaFunctionQualifiedArn",
-        "OutputValue": "arn:aws:lambda:us-east-1:083095415990:function:payment-app-backend-prod-api:8",
+        "OutputValue": "arn:aws:lambda:us-east-1:083095415990:function:payment-app-backend-prod-api:12",
         "Description": "Current Lambda function version",
         "ExportName": "sls-payment-app-backend-prod-ApiLambdaFunctionQualifiedArn"
       },
@@ -855,7 +855,7 @@
           "Properties": {
             "Code": {
               "S3Bucket": "serverless-framework-deployments-us-east-1-f0e05431-9088",
-              "S3Key": "serverless/payment-app-backend/prod/1762228863515-2025-11-04T04:01:03.515Z/payment-app-backend.zip"
+              "S3Key": "serverless/payment-app-backend/prod/1762239664310-2025-11-04T07:01:04.310Z/payment-app-backend.zip"
             },
             "Handler": "index.handler",
             "Runtime": "nodejs20.x",
@@ -884,14 +884,14 @@
             "ApiLogGroup"
           ]
         },
-        "ApiLambdaVersion1g4jK98eresOubXM0RuwHiTRXzSjha6T12Oz4iP7WY": {
+        "ApiLambdaVersionOj3x7PJ5IGeWcQkStB05jRPddywjSQDCJC0tHlwyE": {
           "Type": "AWS::Lambda::Version",
           "DeletionPolicy": "Retain",
           "Properties": {
             "FunctionName": {
               "Ref": "ApiLambdaFunction"
             },
-            "CodeSha256": "/uuY0ac/cPXRWh+p1f/Hr3RwxjP5KF9CC49xeY/xvBk="
+            "CodeSha256": "Mr602V2mkOd5ZNAxL2DHnhTmyI3H2RRrbrGynJD0eT0="
           }
         },
         "HttpApi": {
@@ -1000,7 +1000,7 @@
         "ApiLambdaFunctionQualifiedArn": {
           "Description": "Current Lambda function version",
           "Value": {
-            "Ref": "ApiLambdaVersion1g4jK98eresOubXM0RuwHiTRXzSjha6T12Oz4iP7WY"
+            "Ref": "ApiLambdaVersionOj3x7PJ5IGeWcQkStB05jRPddywjSQDCJC0tHlwyE"
           },
           "Export": {
             "Name": "sls-payment-app-backend-prod-ApiLambdaFunctionQualifiedArn"

@@ -24,6 +24,7 @@ export const createDynamoDBClient = (configService?: ConfigService): DynamoDBDoc
     marshallOptions: {
       removeUndefinedValues: true,
       convertEmptyValues: false,
+      convertClassInstanceToMap: true,
     },
     unmarshallOptions: {
       wrapNumbers: false,

@@ -52,12 +52,22 @@ export class CreateTransactionUseCase {
         await this.customerRepository.save(customer);
       }
 
-      // 4. Calcular montos
-      const baseFee = this.configService.get<number>('BASE_FEE', 2000);
-      const deliveryFee = this.configService.get<number>('DELIVERY_FEE', 5000);
-      const productAmount = product.price * dto.quantity;
+      // 4. Calcular montos - ✅ ASEGURAR QUE SEAN NÚMEROS
+      const baseFee = Number(this.configService.get<number>('BASE_FEE', 2000));
+      const deliveryFee = Number(this.configService.get<number>('DELIVERY_FEE', 5000));
+      const productAmount = Number(product.price) * Number(dto.quantity);
+
+      console.log('Creating transaction with amounts:', {
+        productPrice: product.price,
+        quantity: dto.quantity,
+        productAmount,
+        baseFee,
+        deliveryFee,
+      });
 
       const fees = Transaction.calculateFees(productAmount, baseFee, deliveryFee);
+
+      console.log('Calculated fees:', fees);
 
       // 5. Crear la transacción en estado PENDING
       const transaction = new Transaction(
@@ -77,6 +87,15 @@ export class CreateTransactionUseCase {
         new Date(),
       );
 
+      console.log('Transaction created:', {
+        id: transaction.id,
+        productAmount: transaction.productAmount,
+        baseFee: transaction.baseFee,
+        deliveryFee: transaction.deliveryFee,
+        totalAmount: transaction.totalAmount,
+        totalInPesos: transaction.totalAmount / 100,
+      });
+
       await this.transactionRepository.save(transaction);
 
       // 6. Crear información de entrega
@@ -93,6 +112,7 @@ export class CreateTransactionUseCase {
         delivery,
       });
     } catch (error) {
+      console.error('CreateTransactionUseCase error:', error);
       return Result.failure(error);
     }
   }
