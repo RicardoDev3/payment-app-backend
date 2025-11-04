@@ -1,26 +1,20 @@
 /* eslint-disable @typescript-eslint/no-floating-promises */
+
 import { CreateTableCommand, DynamoDBClient, ListTablesCommand, AttributeDefinition, KeySchemaElement, BillingMode } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
-import { NodeHttpHandler } from '@smithy/node-http-handler';
 import { v4 as uuidv4 } from 'uuid';
 import * as dotenv from 'dotenv';
 
-// Cargar variables de entorno
-dotenv.config();
+// Cargar variables de producción
+dotenv.config({ path: '.env.prod' });
 
-// ... (otros imports)
-
+// Cliente para AWS (sin endpoint local)
 const client = new DynamoDBClient({
   region: process.env.AWS_REGION || 'us-east-1',
   credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID || 'dummy',
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || 'dummy',
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
   },
-  maxAttempts: 3,
-  requestHandler: new NodeHttpHandler({
-    requestTimeout: 30000, // 30 segundos
-    connectionTimeout: 10000, // 10 segundos
-  }),
 });
 
 const docClient = DynamoDBDocumentClient.from(client, {
@@ -29,7 +23,7 @@ const docClient = DynamoDBDocumentClient.from(client, {
   },
 });
 
-// Definición de tablas con tipos correctos
+// Definición de tablas (igual que local)
 const tables = [
   {
     TableName: 'Products',
@@ -57,7 +51,7 @@ const tables = [
   },
 ];
 
-// Productos de prueba
+// Productos de prueba (mismo que local)
 const seedProducts = [
   {
     id: uuidv4(),
@@ -112,15 +106,13 @@ const seedProducts = [
 ];
 
 async function createTables() {
-  console.log('🔍 Checking existing tables...');
-  console.log('📡 Connecting to:', process.env.DYNAMODB_ENDPOINT || 'AWS DynamoDB');
+  console.log('🔍 Checking existing tables in AWS...');
+  console.log('📡 Connecting to AWS DynamoDB (us-east-1)');
 
   try {
     const listTablesCommand = new ListTablesCommand({});
-    console.log('📤 Sending ListTables command...');
-
     const existingTables = await client.send(listTablesCommand);
-    console.log('📥 Response received. Existing tables:', existingTables.TableNames || []);
+    console.log('📥 Existing tables:', existingTables.TableNames || []);
 
     for (const table of tables) {
       if (existingTables.TableNames?.includes(table.TableName)) {
@@ -130,6 +122,10 @@ async function createTables() {
         const command = new CreateTableCommand(table);
         await client.send(command);
         console.log(`✅ Table ${table.TableName} created successfully`);
+
+        // Esperar a que la tabla esté activa
+        console.log(`⏳ Waiting for ${table.TableName} to be active...`);
+        await new Promise((resolve) => setTimeout(resolve, 10000));
       }
     }
   } catch (error) {
@@ -139,7 +135,7 @@ async function createTables() {
 }
 
 async function seedData() {
-  console.log('\n🌱 Seeding products...');
+  console.log('\n🌱 Seeding products to AWS DynamoDB...');
 
   try {
     for (const product of seedProducts) {
@@ -148,13 +144,17 @@ async function seedData() {
         TableName: 'Products',
         Item: product,
       });
-
       await docClient.send(command);
-      console.log(`✅ Product "${product.name}" created`);
+      console.log(`✅ Product "${product.name}" created (ID: ${product.id})`);
     }
 
     console.log('\n✨ Database initialized successfully!');
-    console.log(`📊 Created ${seedProducts.length} products`);
+    console.log(`📊 Created ${seedProducts.length} products in AWS`);
+
+    console.log('\n📝 Product IDs for testing:');
+    seedProducts.forEach((p) => {
+      console.log(`  - ${p.name}: ${p.id}`);
+    });
   } catch (error) {
     console.error('❌ Error seeding data:', error);
     throw error;
@@ -163,14 +163,14 @@ async function seedData() {
 
 async function init() {
   try {
-    console.log('🚀 Starting database initialization...\n');
+    console.log('🚀 Starting AWS DynamoDB initialization...\n');
     await createTables();
     await seedData();
     console.log('\n✅ All done!');
+    console.log('🌐 Ready to deploy backend to AWS!');
     process.exit(0);
   } catch (error) {
-    console.error('\n❌ Error initializing database:', error);
-    console.error('\nDetails:', error);
+    console.error('\n❌ Error initializing AWS database:', error);
     process.exit(1);
   }
 }

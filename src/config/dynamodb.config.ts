@@ -10,6 +10,7 @@ export const createDynamoDBClient = (configService?: ConfigService): DynamoDBDoc
     region: configService?.get('AWS_REGION') || process.env.AWS_REGION || 'us-east-1',
   };
 
+  // Solo para desarrollo local
   if (isLocal) {
     config.endpoint = configService?.get('DYNAMODB_ENDPOINT') || envEndpoint;
     config.credentials = {

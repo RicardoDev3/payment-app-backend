@@ -1,0 +1,50 @@
+service: payment-app-backend
+
+build:
+  esbuild: false
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  region: us-east-1
+  stage: prod
+  timeout: 29
+  memorySize: 1024
+  
+  environment:
+    NODE_ENV: production
+    WOMPI_BASE_URL: https://api-sandbox.co.uat.wompi.dev/v1
+    WOMPI_PUBLIC_KEY: pub_stagtest_g2u0HQd3ZMh05hsSgTS2lUV8t3s4mOt7
+    WOMPI_PRIVATE_KEY: prv_stagtest_5i0ZGIGiFcDQifYsXxvsny7Y37tKqFWg
+    WOMPI_INTEGRITY_KEY: stagtest_integrity_nAIBuqayW70XpUqJS4qf4STYiISd89Fp
+    BASE_FEE: '2000'
+    DELIVERY_FEE: '5000'
+  
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:*
+          Resource:
+            - 'arn:aws:dynamodb:us-east-1:*:table/Products'
+            - 'arn:aws:dynamodb:us-east-1:*:table/Customers'
+            - 'arn:aws:dynamodb:us-east-1:*:table/Transactions'
+            - 'arn:aws:dynamodb:us-east-1:*:table/Deliveries'
+
+functions:
+  api:
+    handler: index.handler
+    events:
+      - httpApi: '*'
+
+package:
+  patterns:
+    - 'index.js'          
+    - 'dist/src/**'       
+    - 'node_modules/**'
+    - '!node_modules/aws-sdk/**'
+    - '!node_modules/.cache/**'
+    - '!**/.vscode/**'
+    - '!**/test/**'
+    - '!dist/scripts/**'  
